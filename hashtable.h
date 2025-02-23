@@ -40,3 +40,4 @@ size_t hash_this_node(node* toHash, size_t capacityOfHashTable);
 size_t hash(void* key, size_t len, size_t capacity);
 void test_hashtable();
 void clear_hashtable(hashtable* toClear);
+int compareData(void* data1, size_t size1, void* data2, size_t size2);

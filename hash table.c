@@ -198,8 +198,8 @@ int compareData(void* data1, size_t size1, void* data2, size_t size2) {
 		if (ptr1[i] != ptr2[i])
 			return ptr1[i] > ptr2[i]*2-1;
 
-		return 0;
 	}
+	return 0;
 }
 
 size_t hash(void* key, size_t len, size_t capacity) {
