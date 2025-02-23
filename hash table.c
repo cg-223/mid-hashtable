@@ -208,7 +208,7 @@ int compareData(void* data1, size_t size1, void* data2, size_t size2) {
 size_t hash(void* key, size_t len, size_t capacity) {
 	unsigned long hash = 0;
 	int* intData = (int*)key;
-	for (int i = 0; i  len; i++) {
+	for (int i = 0; i < len; i++) {
 		hash = intData[i] + (hash << 6) + (hash << 16) - hash;
 	}
 
