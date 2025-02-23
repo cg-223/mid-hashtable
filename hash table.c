@@ -17,6 +17,7 @@ void* xmalloc(size_t amount) {
 	return toRet;
 }
 
+
 //creates a new hashtable with default values
 #define spawn_hashtable() create_hashtable(DEFAULT_CAPACITY)
 //hashtable* spawn_hashtable() {
@@ -27,17 +28,24 @@ void* xmalloc(size_t amount) {
 //create a hashtable with specified values
 hashtable* create_hashtable(size_t capacity) {
 	hashtable* myHash = (hashtable*)xmalloc(sizeof(hashtable));
-	myHash->array = (node**)xmalloc(sizeof(node*) * capacity);
+	myHash->array = (head**)xmalloc(sizeof(head*) * capacity);
 	myHash->capacity = capacity;
+	for (int i = 0; i < capacity; i++) {
+		myHash->array[i] = (head*)xmalloc(sizeof(head));
+		myHash->array[i]->first = NULL;
+		myHash->array[i]->treeLen = 0;
+	}
 	clear_hashtable(myHash);
 	return myHash;
 }
 
 
 //clear all values from the hashtable (sets all nodes to NULL). does not free any nodes. may lead to leaks.
+//all heads stay
 void clear_hashtable(hashtable* toClear) {
 	for (int i = 0; i < toClear->capacity; i++) {
-		toClear->array[i] = NULL;
+		toClear->array[i]->first = NULL;
+		toClear->array[i]->treeLen = 0;
 	}
 }
 
@@ -65,8 +73,8 @@ void wipe_node_and_data(node* toWipe) {
 //wipe all values from the hashtable. does not free data, but does free all nodes.
 void wipe_hashtable(hashtable* toWipe) {
 	for (int i = 0; i < toWipe->capacity; i++) {
-		wipe_node(toWipe->array[i]);
-		toWipe->array[i] = NULL;
+		wipe_node(toWipe->array[i]->first);
+		toWipe->array[i]->first = NULL;
 	}
 }
 
@@ -75,8 +83,8 @@ void wipe_hashtable(hashtable* toWipe) {
 //frees any and all pointer-stored data in the hashtable. guaranteed to never leak any data
 void wipe_hashtable_and_data(hashtable* toWipe) {
 	for (int i = 0; i < toWipe->capacity; i++) {
-		wipe_node_and_data(toWipe->array[i]);
-		toWipe->array[i] = NULL;
+		wipe_node_and_data(toWipe->array[i]->first);
+		toWipe->array[i]->first = NULL;
 	}
 }
 
@@ -88,8 +96,8 @@ void resize_hashtable(hashtable* toResize) {
 
 
 void resize_hashtable_specific(hashtable* toResize, size_t new_capacity) {
-	node** realloced = xmalloc(new_capacity * sizeof(node*));
-	memcpy(realloced, toResize->array, (toResize->capacity - 1) * sizeof(node*));
+	head** realloced = xmalloc(new_capacity * sizeof(head*));
+	memcpy(realloced, toResize->array, (toResize->capacity - 1) * sizeof(head*));
 	clear_hashtable(toResize);
 	if (realloced == NULL) {
 		perror("oom");
@@ -99,7 +107,7 @@ void resize_hashtable_specific(hashtable* toResize, size_t new_capacity) {
 		size_t oldSize = toResize->capacity;
 		toResize->capacity = new_capacity;
 		for (int i = 0; i < oldSize; i++) {
-			node* curNode = realloced[i];
+			node* curNode = realloced[i]->first;
 			while (curNode != NULL) {
 				insert_node_into_hashtable(toResize, curNode);
 				curNode = curNode->next;
@@ -122,24 +130,16 @@ node* create_node(void* key, size_t keysize, void* data, size_t size) {
 
 void insert_node_into_hashtable(hashtable* table, node* addThis) {
 	size_t hashed = hash_this_node(addThis, table->capacity);
-	node* at = table->array[hashed];
+	head* head = table->array[hashed];
 	size_t depth = 0;
-	node* lastGood = at;
-	while (at != NULL) {
-		depth++;
-		lastGood = at;
-		at = at->next;
-	}
-	if (at == NULL) {
-		table->array[hashed] = addThis;
-	}
-	else
-		at->next = addThis;
-
+	addThis->next = head->first;
+	head->treeLen++;
+	head->first = addThis;
+#ifndef DONT_RESIZE
 	if (depth > LIST_LENGTH_RESIZE_THRESH) {
 		resize_hashtable(table);
 	}
-	addThis->next = NULL;
+#endif
 }
 
 void insert_data_into_hashtable(hashtable* table, void* key, size_t keysize, void* data, size_t size) {
@@ -149,7 +149,7 @@ void insert_data_into_hashtable(hashtable* table, void* key, size_t keysize, voi
 
 node* lookup_key_in_hashtable(hashtable* table, void* key, size_t keysize) {
 	size_t hashed = hash(key, keysize, table->capacity);
-	node* at = table->array[hashed];
+	node* at = table->array[hashed]->first;
 	while (at != NULL) {
 		if (!compareData(at->key, at->keysize, key, keysize))
 			return at;
@@ -165,15 +165,16 @@ node* lookup_string_in_hashtable(hashtable* table, char* key) {
 
 void delete_key_from_hashtable(hashtable* table, void* key, size_t keysize) {
 	size_t pos = hash(key, keysize, table->capacity);
-	node* at = table->array[pos];
+	node* at = table->array[pos]->first;
 	node* before = NULL;
 	while (at != NULL) {
 		if (!compareData(key, keysize, at->key, at->keysize)) {
 			if (before != NULL) {
+				table->array[pos]->treeLen--;
 				before->next = at->next;
 			}
 			else {
-				table->array[pos] = at->next;
+				table->array[pos]->first = at->next;
 			}
 		}
 		before = at;
@@ -203,9 +204,9 @@ int compareData(void* data1, size_t size1, void* data2, size_t size2) {
 
 size_t hash(void* key, size_t len, size_t capacity) {
 	unsigned long hash = 0;
-	int* intData = (int*)key;
+	char* charData = (char*)key;
 	for (int i = 0; i < len; i++) {
-		hash = intData[i] + (hash << 6) + (hash << 16) - hash;
+		hash = charData[i] + (hash << 6) + (hash << 16) - hash;
 	}
 
 	return hash % capacity;
@@ -228,10 +229,10 @@ void test_hashtable() {
 	insert_data_into_hashtable(myTable, myKey, strlen(myKey) + 1, myVal, strlen(myVal) + 1);
 	node* myNode = lookup_string_in_hashtable(myTable, "key");
 	if (myNode == NULL) {
-		printf("Node not found...\n");
+		printf("Node %s not found...\n", myKey);
 	}
 
-	for (int i = 0; i <= 1000000; i++) {
+	for (int i = 0; i <= 10000000; i++) {
 		char* a = xmalloc(32);
 		_itoa_s(i, a, 32, 10);
 
@@ -241,7 +242,7 @@ void test_hashtable() {
 		insert_data_into_hashtable(myTable, a, (size_t)strlen(a)+1, b, (size_t)strlen(a) + 1);
 		node* myNode = lookup_string_in_hashtable(myTable, a);
 		if (myNode == NULL) {
-			printf("Node not found...\n");
+			printf("Node %s not found...\n", a);
 		}
 		else if (b != myNode->data) {
 			printf("Node mismatch...\n");
@@ -249,6 +250,12 @@ void test_hashtable() {
 		if (i % 5 == 0) {
 			delete_key_from_hashtable(myTable, a, (size_t)strlen(a) + 1);
 		}
+#ifdef HEAVY_LOOKUP_DEBUG
+		for (int i = 0; i <= HEAVY_LOOKUP_DEBUG; i++) {
+			lookup_string_in_hashtable(myTable, "hello");
+			lookup_string_in_hashtable(myTable, a);
+		}
+#endif
 	}
 
 	wipe_hashtable_and_data(myTable);

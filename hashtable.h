@@ -9,8 +9,13 @@ typedef struct node {
 	struct node* next;
 } node;
 
+typedef struct head {
+	struct node* first;
+	size_t treeLen;
+} head;
+
 typedef struct hashtable {
-	struct node** array;
+	struct head** array;
 	size_t capacity; //in pointers
 } hashtable;
 
@@ -23,6 +28,10 @@ LIST_LENGTH_RESIZE_THRESH: When a node is inserted, if it's nested more than LIS
 */
 #define DEFAULT_RESIZE 1.5
 #define LIST_LENGTH_RESIZE_THRESH 4
+
+
+//#define HEAVY_LOOKUP_DEBUG 100
+
 
 void wipe_hashtable(hashtable* toWipe);
 void resize_hashtable_specific(hashtable* toResize, size_t new_capacity);
