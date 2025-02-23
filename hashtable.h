@@ -15,8 +15,15 @@ typedef struct hashtable {
 } hashtable;
 
 #define DEFAULT_CAPACITY 16
-#define DEFAULT_RESIZE 1.6
-#define LIST_LENGTH_RESIZE_THRESH 5
+
+/*
+resize options:
+DEFAULT_RESIZE: List slots multiplied by DEFAULT_RESIZE
+LIST_LENGTH_RESIZE_THRESH: When a node is inserted, if it's nested more than LIST_LENGTH_RESIZE_THRESH times, resize the hashtable (this DOES rehash every element)
+*/
+#define DEFAULT_RESIZE 1.5
+#define LIST_LENGTH_RESIZE_THRESH 4
+
 void wipe_hashtable(hashtable* toWipe);
 void resize_hashtable_specific(hashtable* toResize, size_t new_capacity);
 void insert_node_into_hashtable(hashtable* table, node* addThis);
