@@ -167,6 +167,28 @@ node* lookup_string_in_hashtable(hashtable* table, char* key) {
 	return lookup_key_in_hashtable(table, key, strlen(key) + 1);
 }
 
+void delete_key_from_hashtable(hashtable* table, void* key, size_t keysize) {
+	size_t pos = hash(key, keysize, table->capacity);
+	node* at = table->array[pos];
+	node* before = NULL;
+	while (at != NULL) {
+		if (!compareData(key, keysize, at->key, at->keysize)) {
+			if (before != NULL) {
+				before->next = at->next;
+			}
+			else {
+				table->array[pos] = at->next;
+			}
+		}
+		before = at;
+		at = at->next;
+	}
+}
+
+void delete_key_string_from_hashtable(hashtable* table, char* key) {
+	delete_key_from_hashtable(table, key, strlen(key)+1);
+}
+
 //classic -1 / 0 / 1
 int compareData(void* data1, size_t size1, void* data2, size_t size2) {
 	if (size1 != size2)
@@ -210,10 +232,10 @@ void test_hashtable() {
 	insert_data_into_hashtable(myTable, myKey, strlen(myKey) + 1, myVal, strlen(myVal) + 1);
 	node* myNode = lookup_string_in_hashtable(myTable, "key");
 	if (myNode == NULL) {
-		printf("Node not found...");
+		printf("Node not found...\n");
 	}
 
-	for (int i = 0; i <= 100; i++) {
+	for (int i = 0; i <= 1000000; i++) {
 		char* a = xmalloc(32);
 		_itoa_s(i, a, 32, 10);
 
@@ -221,5 +243,17 @@ void test_hashtable() {
 		_itoa_s(i*2, b, 32, 10);
 		
 		insert_data_into_hashtable(myTable, a, (size_t)strlen(a)+1, b, (size_t)strlen(a) + 1);
+		node* myNode = lookup_string_in_hashtable(myTable, a);
+		if (myNode == NULL) {
+			printf("Node not found...\n");
+		}
+		else if (b != myNode->data) {
+			printf("Node mismatch...\n");
+		}
+		if (i % 5 == 0) {
+			delete_key_from_hashtable(myTable, a, (size_t)strlen(a) + 1);
+		}
 	}
+
+	wipe_hashtable_and_data(myTable);
 }
