@@ -17,10 +17,6 @@ void* xmalloc(size_t amount) {
 	return toRet;
 }
 
-#define DEFAULT_CAPACITY 16
-#define DEFAULT_RESIZE 1.6
-#define LIST_LENGTH_RESIZE_THRESH 5
-
 //creates a new hashtable with default values
 #define spawn_hashtable() create_hashtable(DEFAULT_CAPACITY)
 //hashtable* spawn_hashtable() {
